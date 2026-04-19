@@ -33,6 +33,7 @@ def _recv_fruit_record(socket):
     amount = external_serializer.deserialize_uint32(
         _recv_sized(socket, external_serializer.UINT32_SIZE)
     )
+    print(f"[_recv_fruit_record]: {fruit} - {amount}")
     return (fruit, amount)
 
 
@@ -78,6 +79,7 @@ def _serialize_fruit_record(fruit, amount):
 
 
 def _send_fruit_record(socket, fruit, amount):
+    print(f"[_send_fruit_record]: {fruit} - {amount}")
     msg = external_serializer.serialize_uint32(MsgType.FRUIT_RECORD)
     msg += _serialize_fruit_record(fruit, amount)
     socket.sendall(msg)
@@ -96,6 +98,7 @@ def _send_ack(socket):
 
 
 def _send_end_of_records(socket):
+    print("[_send_end_of_records]: i")
     socket.sendall(external_serializer.serialize_uint32(MsgType.END_OF_RECODS))
 
 

@@ -29,6 +29,7 @@ def handle_client_request(client_socket, message_handler):
                 )
 
             if message[0] == message_protocol.external.MsgType.END_OF_RECODS:
+                logging.info(f"End of records: {message[1]}")
                 serialized_message = message_handler.serialize_eof_message(message[1])
                 output_queue.send(serialized_message)
                 message_protocol.external.send_msg(

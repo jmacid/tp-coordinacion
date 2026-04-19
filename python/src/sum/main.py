@@ -27,13 +27,13 @@ class SumFilter:
         self.amount_by_fruit = {}
 
     def _process_data(self, fruit, amount):
-        logging.info(f"Process data")
+        logging.info(f"Process data: {fruit} - {amount}")
         self.amount_by_fruit[fruit] = self.amount_by_fruit.get(
             fruit, fruit_item.FruitItem(fruit, 0)
         ) + fruit_item.FruitItem(fruit, int(amount))
 
     def _process_eof(self):
-        logging.info(f"Broadcasting data messages")
+        logging.info(f"Broadcasting data messages: {self.amount_by_fruit}")
         for final_fruit_item in self.amount_by_fruit.values():
             for data_output_exchange in self.data_output_exchanges:
                 data_output_exchange.send(

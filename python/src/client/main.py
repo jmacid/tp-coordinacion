@@ -3,6 +3,7 @@ import logging
 import csv
 import socket
 import signal
+# import debugpy
 
 from common import message_protocol
 
@@ -35,7 +36,7 @@ class Client:
             self.server_socket.shutdown(socket.SHUT_RDWR)
 
     def send_fruit_records(self, input_file):
-        logging.info("Sending fruit records")
+        logging.info("[send_fruit_records] Sending fruit records")
         with open(input_file, newline="\n") as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=",", quotechar='"')
             for row in csv_reader:
@@ -46,12 +47,16 @@ class Client:
                     fruit,
                     int(amount),
                 )
-                message_protocol.external.recv_msg(self.server_socket)
+                logging.info("[send_fruit_records]: recv i")
+                msg_0, msg_1 = message_protocol.external.recv_msg(self.server_socket)
+                logging.info(f"[send_fruit_records]: recv f: {msg_0} - {msg_1}")
 
+        logging.info("[send_fruit_records]: END_OF_RECODS i")
         message_protocol.external.send_msg(
             self.server_socket, message_protocol.external.MsgType.END_OF_RECODS
         )
         message_protocol.external.recv_msg(self.server_socket)
+        logging.info("[send_fruit_records]: END_OF_RECODS f")
 
     def recv_fruit_top(self, output_file):
         logging.info("Receiving fruit top")
@@ -72,6 +77,7 @@ class Client:
 def main() -> int:
     logging.basicConfig(level=logging.INFO)
     client = Client()
+    logging.info("Starting")
 
     try:
         client.connect(SERVER_HOST, SERVER_PORT)
@@ -88,6 +94,7 @@ def main() -> int:
         if not client.closed:
             client.disconnect()
 
+    logging.info("Ending")
     return 0
 
 
