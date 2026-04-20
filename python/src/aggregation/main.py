@@ -36,10 +36,11 @@ class AggregationFilter:
 
         for i in range(len(client_fruit_top)):
             if client_fruit_top[i].fruit == fruit:
-                client_fruit_top[i] = client_fruit_top[i] + fruit_item.FruitItem(
-                    fruit, amount
-                )
+                updated_item = client_fruit_top[i] + fruit_item.FruitItem(fruit, amount)
+                client_fruit_top.pop(i)
+                bisect.insort(client_fruit_top, updated_item)
                 return
+
         bisect.insort(client_fruit_top, fruit_item.FruitItem(fruit, amount))
 
     def _process_eof(self, client_id):
