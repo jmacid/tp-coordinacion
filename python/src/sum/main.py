@@ -66,7 +66,7 @@ class SumFilter:
             data_output_exchange.send(message_protocol.internal.serialize([client_id]))
 
 
-    def process_data_messsage(self, message, ack, nack):
+    def process_data_message(self, message, ack, nack):
         fields = message_protocol.internal.deserialize(message)
         if len(fields) == 3:
             self._process_data(*fields)
