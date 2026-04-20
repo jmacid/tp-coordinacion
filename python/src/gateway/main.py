@@ -49,33 +49,46 @@ def handle_client_response(client_list):
     input_queue = middleware.MessageMiddlewareQueueRabbitMQ(MOM_HOST, INPUT_QUEUE)
 
     def _consume_result(message, ack, nack):
-        client_index = 0
         try:
-            for [_, message_handler_instance, client_socket] in client_list:
-                deserialized_message = (
-                    message_handler_instance.deserialize_result_message(message)
-                )
-                logging.info(f"[_consume_result][_consume_result]: {deserialized_message}")
+            fields = message_protocol.internal.deserialize(message)
 
-                if not deserialized_message:
-                    client_index += 1
-                    continue
+            if len(fields) != 2:
+                ack()
+                return
 
+            target_client_id = fields[0]
+            fruit_top = fields[1]
+
+            client_index = -1
+            target_socket = None
+
+            for idx, client_data in enumerate(client_list):
+                if client_data[0] == target_client_id:
+                    client_index = idx
+                    target_socket = client_data[2]
+                    break
+
+            if target_socket:
+                logging.info(f"[_consume_result] Enviando FRUIT_TOP al cliente {target_client_id[:8]}")
                 message_protocol.external.send_msg(
-                    client_socket,
+                    target_socket,
                     message_protocol.external.MsgType.FRUIT_TOP,
-                    deserialized_message,
+                    fruit_top,
                 )
-                message_protocol.external.recv_msg(client_socket)
-                break
-            client_list.pop(client_index)
+                message_protocol.external.recv_msg(target_socket)
+                client_list.pop(client_index)
+            else:
+                logging.warning(f"[_consume_result] Socket no encontrado para el cliente {target_client_id[:8]}")
+
             ack()
+
         except socket.error:
-            logging.error("The connection with the server was lost")
-            client_list.pop(client_index)
+            logging.error("[_consume_result] Se perdio la conexion con el cliente")
+            if client_index != -1:
+                client_list.pop(client_index)
             ack()
         except Exception as e:
-            logging.error(e)
+            logging.error(f"[_consume_result] Error inesperado en: {e}")
             nack()
             input_queue.stop_consuming()
 
