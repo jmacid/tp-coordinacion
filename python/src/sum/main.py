@@ -1,7 +1,6 @@
 import os
 import logging
 import threading
-import hashlib
 
 from common import middleware, message_protocol, fruit_item
 
@@ -55,10 +54,7 @@ class SumFilter:
         with self.lock:
             if client_id in self.amount_by_client_and_fruit:
                 for final_fruit_item in self.amount_by_client_and_fruit[client_id].values():
-                    hash_val = int(hashlib.md5(final_fruit_item.fruit.encode('utf-8')).hexdigest(), 16)
-                    aggregator_index = hash_val % AGGREGATION_AMOUNT
-
-                    self.data_output_exchanges[aggregator_index].send(
+                    self.data_output_exchanges[0].send(
                         message_protocol.internal.serialize(
                             [client_id, final_fruit_item.fruit, final_fruit_item.amount]
                         )
@@ -81,7 +77,11 @@ class SumFilter:
 
     def process_control_message(self, message, ack, nack):
         fields = message_protocol.internal.deserialize(message)
-        self._process_eof(fields[0])
+        client_id = fields[0]
+
+        self.input_queue.ch.connection.add_callback_threadsafe(
+            lambda: self._process_eof(client_id)
+        )
         ack()
 
     def start(self):
