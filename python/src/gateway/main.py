@@ -127,7 +127,7 @@ def main():
                         client_socket, _ = server_socket.accept()
 
                         client_id = str(uuid.uuid4())
-                        logging.info(f"A new client has connected: {client_id}")
+                        logging.info(f"A new client has connected: {client_id[:8]}")
                         message_handler_instance = message_handler.MessageHandler(client_id)
                         client_list.append([client_id, message_handler_instance, client_socket])
                         processes_pool.apply_async(
