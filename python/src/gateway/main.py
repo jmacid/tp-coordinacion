@@ -5,6 +5,7 @@ import signal
 import multiprocessing
 import message_handler
 from common import middleware, message_protocol
+import uuid
 
 SERVER_HOST = os.environ["SERVER_HOST"]
 SERVER_PORT = int(os.environ["SERVER_PORT"])
@@ -50,10 +51,11 @@ def handle_client_response(client_list):
     def _consume_result(message, ack, nack):
         client_index = 0
         try:
-            for [message_handler_instance, client_socket] in client_list:
+            for [_, message_handler_instance, client_socket] in client_list:
                 deserialized_message = (
                     message_handler_instance.deserialize_result_message(message)
                 )
+                logging.info(f"[_consume_result][_consume_result]: {deserialized_message}")
 
                 if not deserialized_message:
                     client_index += 1
@@ -111,9 +113,10 @@ def main():
                     try:
                         client_socket, _ = server_socket.accept()
 
-                        logging.info("A new client has connected")
-                        message_handler_instance = message_handler.MessageHandler()
-                        client_list.append([message_handler_instance, client_socket])
+                        client_id = uuid.uuid4()
+                        logging.info(f"A new client has connected: {str(client_id)}")
+                        message_handler_instance = message_handler.MessageHandler(client_id)
+                        client_list.append([client_id, message_handler_instance, client_socket])
                         processes_pool.apply_async(
                             handle_client_request,
                             (client_socket, message_handler_instance),

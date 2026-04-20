@@ -24,32 +24,41 @@ class SumFilter:
                 MOM_HOST, AGGREGATION_PREFIX, [f"{AGGREGATION_PREFIX}_{i}"]
             )
             self.data_output_exchanges.append(data_output_exchange)
-        self.amount_by_fruit = {}
+        self.amount_by_client_and_fruit = {}
 
-    def _process_data(self, fruit, amount):
-        logging.info(f"Process data: {fruit} - {amount}")
-        self.amount_by_fruit[fruit] = self.amount_by_fruit.get(
+    def _process_data(self, client_id, fruit, amount):
+        logging.info(f"[_process_data]: Process data for client {client_id}")
+        logging.info(f"[_process_data]: Process data: {fruit} - {amount}")
+
+        if client_id not in self.amount_by_client_and_fruit:
+            self.amount_by_client_and_fruit[client_id] = {}
+
+        client_data = self.amount_by_client_and_fruit[client_id]
+        client_data[fruit] = client_data.get(
             fruit, fruit_item.FruitItem(fruit, 0)
         ) + fruit_item.FruitItem(fruit, int(amount))
 
-    def _process_eof(self):
-        logging.info(f"Broadcasting data messages: {self.amount_by_fruit}")
-        for final_fruit_item in self.amount_by_fruit.values():
-            for data_output_exchange in self.data_output_exchanges:
-                data_output_exchange.send(
-                    message_protocol.internal.serialize(
-                        [final_fruit_item.fruit, final_fruit_item.amount]
-                    )
-                )
+    def _process_eof(self, client_id):
+        logging.info(f"Broadcasting data messages for {client_id[:8]}")
 
-        logging.info(f"Broadcasting EOF message")
+        if client_id in self.amount_by_client_and_fruit:
+            for final_fruit_item in self.amount_by_client_and_fruit[client_id].values():
+                for data_output_exchange in self.data_output_exchanges:
+                    data_output_exchange.send(
+                        message_protocol.internal.serialize(
+                            [client_id, final_fruit_item.fruit, final_fruit_item.amount]
+                        )
+                    )
+
+        del self.amount_by_client_and_fruit[client_id]
+        logging.info(f"Broadcasting EOF message for {client_id}")
         for data_output_exchange in self.data_output_exchanges:
-            data_output_exchange.send(message_protocol.internal.serialize([]))
+            data_output_exchange.send(message_protocol.internal.serialize([client_id]))
 
 
     def process_data_messsage(self, message, ack, nack):
         fields = message_protocol.internal.deserialize(message)
-        if len(fields) == 2:
+        if len(fields) == 3:
             self._process_data(*fields)
         else:
             self._process_eof(*fields)
