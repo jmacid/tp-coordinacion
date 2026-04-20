@@ -24,6 +24,7 @@ class AggregationFilter:
             MOM_HOST, OUTPUT_QUEUE
         )
         self.fruit_top_by_client = {}
+        self.eof_count_by_client = {}
 
     def _process_data(self, client_id, fruit, amount):
         logging.info(f"Processing data message for {client_id[:8]}: {fruit} - {amount}")
@@ -43,6 +44,15 @@ class AggregationFilter:
 
     def _process_eof(self, client_id):
         logging.info(f"Received EOF for {client_id[:8]}")
+
+        if client_id not in self.eof_count_by_client:
+            self.eof_count_by_client[client_id] = 0
+        self.eof_count_by_client[client_id] += 1
+
+        if self.eof_count_by_client[client_id] < SUM_AMOUNT:
+            return
+
+        logging.info(f"Received ALL EOF for {client_id[:8]}")
         if client_id not in self.fruit_top_by_client:
              self.fruit_top_by_client[client_id] = []
 
@@ -56,6 +66,7 @@ class AggregationFilter:
         )
         self.output_queue.send(message_protocol.internal.serialize([client_id, fruit_top]))
         del self.fruit_top_by_client[client_id]
+        del self.eof_count_by_client[client_id]
 
     def process_messsage(self, message, ack, nack):
         logging.info("Process message")

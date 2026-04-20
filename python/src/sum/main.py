@@ -20,7 +20,11 @@ class SumFilter:
             MOM_HOST, INPUT_QUEUE
         )
 
-        self.control_exchange = middleware.MessageMiddlewareExchangeRabbitMQ(
+        self.control_exchange_consumer = middleware.MessageMiddlewareExchangeRabbitMQ(
+            MOM_HOST, SUM_CONTROL_EXCHANGE, [SUM_CONTROL_EXCHANGE]
+        )
+
+        self.control_exchange_publisher = middleware.MessageMiddlewareExchangeRabbitMQ(
             MOM_HOST, SUM_CONTROL_EXCHANGE, [SUM_CONTROL_EXCHANGE]
         )
 
@@ -66,13 +70,13 @@ class SumFilter:
             data_output_exchange.send(message_protocol.internal.serialize([client_id]))
 
 
-    def process_data_message(self, message, ack, nack):
+    def process_data_messsage(self, message, ack, nack):
         fields = message_protocol.internal.deserialize(message)
         if len(fields) == 3:
             self._process_data(*fields)
         else:
             logging.info(f"Retransmitiendo EOF a todos los SUMs para {fields[0][:8]}")
-            self.control_exchange.send(message)
+            self.control_exchange_publisher.send(message)
         ack()
 
     def process_control_message(self, message, ack, nack):
@@ -81,10 +85,13 @@ class SumFilter:
         ack()
 
     def start(self):
-        self.thread_pcm = threading.Thread(target=self.control_exchange.start_consuming, args=(self.process_control_message,))
+        self.thread_pcm = threading.Thread(
+            target=self.control_exchange_consumer.start_consuming,
+            args=(self.process_control_message,)
+        )
         self.thread_pcm.start()
 
-        self.input_queue.start_consuming(self.process_data_message)
+        self.input_queue.start_consuming(self.process_data_messsage)
         self.thread_pcm.join()
 
 def main():
