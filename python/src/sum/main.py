@@ -2,6 +2,7 @@ import os
 import logging
 import threading
 import hashlib
+import signal
 
 from common import middleware, message_protocol, fruit_item
 
@@ -87,8 +88,16 @@ class SumFilter:
             lambda: self._process_eof(client_id)
         )
         ack()
+    def handle_sigterm(self, signum, frame):
+        logging.info("SIGTERM recibido")
+        self.input_queue.stop_consuming()
+
+        self.control_exchange_consumer.ch.connection.add_callback_threadsafe(
+            self.control_exchange_consumer.stop_consuming
+        )
 
     def start(self):
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
         self.thread_pcm = threading.Thread(
             target=self.control_exchange_consumer.start_consuming,
             args=(self.process_control_message,)
@@ -97,6 +106,12 @@ class SumFilter:
 
         self.input_queue.start_consuming(self.process_data_messsage)
         self.thread_pcm.join()
+
+        self.input_queue.close()
+        self.control_exchange_consumer.close()
+        self.control_exchange_publisher.close()
+        for exchange in self.data_output_exchanges:
+            exchange.close()
 
 def main():
     logging.basicConfig(level=logging.INFO)
