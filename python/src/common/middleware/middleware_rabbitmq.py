@@ -1,7 +1,5 @@
 import pika
-import random
-import string
-from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange
+from .middleware import MessageMiddlewareQueue, MessageMiddlewareExchange, MessageMiddlewareCloseError, MessageMiddlewareDisconnectedError
 
 class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
@@ -16,13 +14,19 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
 
     def close(self):
         print('[MessageMiddlewareQueueRabbitMQ]: close i')
-        self.ch.close()
+        try:
+            self.ch.close()
+        except Exception as e:
+            raise MessageMiddlewareCloseError(str(e)) from e
 
     def send(self, message):
         print('[MessageMiddlewareQueueRabbitMQ]: send i')
-        self.ch.basic_publish(exchange='',
-                      routing_key=self.queue_name,
-                      body=message)
+        try:
+            self.ch.basic_publish(exchange='',
+                          routing_key=self.queue_name,
+                          body=message)
+        except pika.exceptions.AMQPConnectionError as e:
+            raise MessageMiddlewareDisconnectedError(str(e)) from e
 
     def start_consuming(self, callback):
         def pika_callbackdef(ch, method, properties, body):
@@ -39,11 +43,17 @@ class MessageMiddlewareQueueRabbitMQ(MessageMiddlewareQueue):
                         auto_ack=False,
                         on_message_callback=pika_callbackdef)
 
-        self.ch.start_consuming()
+        try:
+            self.ch.start_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            raise MessageMiddlewareDisconnectedError(str(e)) from e
 
     def stop_consuming(self):
         print('[MessageMiddlewareQueueRabbitMQ]: stop_consuming i')
-        self.ch.stop_consuming()
+        try:
+            self.ch.stop_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            raise MessageMiddlewareDisconnectedError(str(e)) from e
 
 
 class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
@@ -66,7 +76,10 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
     def send(self, message):
         print('[MessageMiddlewareExchangeRabbitMQ]: send i')
         r_key = self.routing_keys[0] if self.routing_keys else ''
-        self.ch.basic_publish(exchange=self.exchange_name, routing_key=r_key, body=message)
+        try:
+            self.ch.basic_publish(exchange=self.exchange_name, routing_key=r_key, body=message)
+        except pika.exceptions.AMQPConnectionError as e:
+            raise MessageMiddlewareDisconnectedError(str(e)) from e
 
     def start_consuming(self, callback):
         print('[MessageMiddlewareExchangeRabbitMQ]: start_consuming i')
@@ -90,8 +103,14 @@ class MessageMiddlewareExchangeRabbitMQ(MessageMiddlewareExchange):
             auto_ack=False
         )
 
-        self.ch.start_consuming()
+        try:
+            self.ch.start_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            raise MessageMiddlewareDisconnectedError(str(e)) from e
 
     def stop_consuming(self):
         print('[MessageMiddlewareExchangeRabbitMQ]: stop_consuming i')
-        self.ch.stop_consuming()
+        try:
+            self.ch.stop_consuming()
+        except pika.exceptions.AMQPConnectionError as e:
+            raise MessageMiddlewareDisconnectedError(str(e)) from e
