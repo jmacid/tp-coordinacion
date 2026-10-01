@@ -1,20 +1,34 @@
 # Trabajo Práctico - Coordinación
 
-En este trabajo se busca familiarizar a los estudiantes con los desafíos de la coordinación del trabajo y el control de la complejidad en sistemas distribuidos. Para tal fin se provee un esqueleto de un sistema de control de stock de una verdulería y un conjunto de escenarios de creciente grado de complejidad y distribución que demandarán mayor sofisticación en la comunicación de las partes involucradas.
+## Introducción
 
-## Ejecución
+En este trabajo se busca familiarizar a los estudiantes con los desafíos de la coordinación del trabajo y el control de la complejidad en sistemas distribuidos. Para tal fin se provee un esqueleto de un sistema de control de stock de una verdulería y un conjunto de escenarios de prueba de creciente grado de complejidad, abstracción y distribución, que demandarán mayor sofisticación en la comunicación de las partes involucradas.
 
-`make up` : Inicia los contenedores del sistema y comienza a seguir los logs de todos ellos en un solo flujo de salida.
+## Condiciones de Entrega
 
-`make down`:   Detiene los contenedores y libera los recursos asociados.
+El código de este repositorio se agrupa en dos carpetas, una para Python y otra para Golang. Los estudiantes deberán elegir **sólo uno** de estos lenguajes y realizar una implementación que funcione correctamente ante cambios en la multiplicidad de los controles (archivo de docker compose), los archivos de entrada y las implementaciones de las funciones de Suma y Comparación del `FruitItem`.
 
-`make logs`: Sigue los logs de todos los contenedores en un solo flujo de salida.
+![ ](./imgs/mutabilidad.jpg  "Mutabilidad de Elementos")
+*Fig. 2: Elementos mutables e inmutables*
 
-`make test`: Inicia los contenedores del sistema, espera a que los clientes finalicen, compara los resultados con una ejecución serial y detiene los contenederes.
+A modo de referencia, en la *Figura 2* se marcan en tonos oscuros los elementos que los estudiantes no deben alterar y en tonos claros aquellos sobre los que tienen libertad de decisión.
+Al momento de la evaluación y ejecución de las pruebas se **descartarán** o **reemplazarán** :
 
-`make switch`: Permite alternar rápidamente entre los archivos de docker compose de los distintos escenarios provistos.
+- Los archivos de entrada de la carpeta `datasets`.
+- El archivo docker compose principal y los de la carpeta `scenarios`.
+- Todos los archivos Dockerfile.
+- Todo el código del cliente.
+- Todo el código del gateway, salvo `message_handler`.
+- La implementación del protocolo de comunicación externo y `FruitItem`.
 
-## Elementos del sistema objetivo
+Se proveen escenarios de prueba en la carpeta `scenarios` en conjunto con un script de validación (ver `make switch`y `make test` en la sección Ejecución). La solución final deberá contemplar la totalidad de los escenarios. El incumplimiento de las pruebas es condición de desaprobación, pero su cumplimiento no es suficiente para la aprobación. Se pide a los alumnos leer atentamente el enunciado y **tener en cuenta** los criterios de corrección informados [en el campus](https://campusgrado.fi.uba.ar/mod/page/view.php?id=73393).
+
+Redactar un breve informe en el archivo `INFORME.md` explicando la forma en que se coordinan las instancias de Sum y Aggregation, así como el modo en el que el sistema escala respecto a los clientes, grándes volúmens de datos y la cantidad de controles.
+
+La entrega consiste en el enlace al último commit que se haya enviado, por ejemplo:
+[https://github.com/7574-sistemas-distribuidos/tp-coordinacion/commit/6de10feffc3464194fc87536266f70ae1cb73fac](https://github.com/7574-sistemas-distribuidos/tp-coordinacion/commit/6de10feffc3464194fc87536266f70ae1cb73fac)
+
+## Descripción del sistema objetivo
 
 ![ ](./imgs/diagrama_de_robustez.jpg  "Diagrama de Robustez")
 *Fig. 1: Diagrama de Robustez*
@@ -57,43 +71,19 @@ No obstante, esta implementación no cubre los objetivos buscados tal y como es 
  - No se implementa la interfaz del middleware. 
  - No se dividen los flujos de datos de los clientes más allá del Gateway, por lo que no se es capaz de resolver múltiples consultas concurrentemente.
  - No se implementan mecanismos de sincronización que permitan escalar los controles Sum y Aggregator. En particular:
+   - No se puede escalar respecto a grandes volúmenes de datos transmitidos desde los clientes.
    - Las instancias de Sum se dividen el trabajo, pero solo una de ellas recibe la notificación de finalización en la ingesta de datos.
    - Las instancias de Sum realizan _broadcast_ a todas las instancias de Aggregator, en lugar de agrupar los datos por algún criterio y evitar procesamiento redundante.
   - No se maneja la señal SIGTERM, con la salvedad de los clientes y el Gateway.
 
-## Condiciones de Entrega
+## Ejecución
 
-El código de este repositorio se agrupa en dos carpetas, una para Python y otra para Golang. Los estudiantes deberán elegir **sólo uno** de estos lenguajes y realizar una implementación que funcione correctamente ante cambios en la multiplicidad de los controles (archivo de docker compose), los archivos de entrada y las implementaciones de las funciones de Suma y Comparación del `FruitItem`.
+`make up` : Inicia los contenedores del sistema y comienza a seguir los logs de todos ellos en un solo flujo de salida.
 
-![ ](./imgs/mutabilidad.jpg  "Mutabilidad de Elementos")
-*Fig. 2: Elementos mutables e inmutables*
+`make down`:   Detiene los contenedores y libera los recursos asociados.
 
-A modo de referencia, en la *Figura 2* se marcan en tonos oscuros los elementos que los estudiantes no deben alterar y en tonos claros aquellos sobre los que tienen libertad de decisión.
-Al momento de la evaluación y ejecución de las pruebas se **descartarán** o **reemplazarán** :
+`make logs`: Sigue los logs de todos los contenedores en un solo flujo de salida.
 
-- Los archivos de entrada de la carpeta `datasets`.
-- El archivo docker compose principal y los de la carpeta `scenarios`.
-- Todos los archivos Dockerfile.
-- Todo el código del cliente.
-- Todo el código del gateway, salvo `message_handler`.
-- La implementación del protocolo de comunicación externo y `FruitItem`.
+`make test`: Inicia los contenedores del sistema, espera a que los clientes finalicen, compara los resultados con una ejecución serial y detiene los contenederes.
 
-Redactar un breve informe explicando el modo en que se coordinan las instancias de Sum y Aggregation, así como el modo en el que el sistema escala respecto a los clientes y a la cantidad de controles.
-
-
-# Resolucion
-
-## 2 - Multiples clientes
-Para soportar multiples clientes se realizo una multiplexacion logica de los clientes. Para ello, se incluyo en los mensajes el id de cada cliente para poder diferenciar los flujos entre ellos. La modificacion principal se produjo en el **gateway** donde el `id` es generado de forma trasparente para los clientes. El **Gateway** guarda un mapa o lista en memoria relacionando ese `client_id` con su respectivo socket de conexión. Cuando el resultado final (`[client_id, fruit_top]`) vuelve desde el nodo **Joiner**, el **Gateway** busca el socket correcto en su lista y le envía la respuesta exclusivamente a ese cliente, garantizando que nadie reciba el top de otro.
-Tambien se produjeron cambios en **Sum** y en el **Aggregator**, donde se empezo a agrupar los datos por `client_id`. Es decir, los datos de cada cliente van a su propia lista. Además, al finalizar el procesamiento de un cliente (al recibir su señal `EOF`), cada nodo elimina únicamente la estructura de datos asociada a ese `client_id`, liberando memoria sin afectar los flujos de los demás clientes activos.
-
-## 3 - Multiples sum
-
-Se utiliza un exchange (`SUM_CONTROL_EXCHANGE`) para que los SUMs se avisen entre sí de los EOFs. Se utiliza un *thread* para que escuche por los mensajes EOF y se utiliza `add_callback_threadsafe` para que no haya condicion de carrera con los mensajes de frutras y se cierre prematuramente. Esto inyecta la ejecución de la función directamente en el event loop del hilo principal, asegurando que se ejecute en orden junto con los mensajes que ya están encolados localmente.
-
-Para los aggregators, para esperar a todos los sums para que envien el EOF se utiliza un contador y se espera hasta recibir `SUM_AMOUNT` para proceder. Ademas se utiliza un exchange para publicar y otro para consumir.
-
-## 4 - Multiples aggregators
-Para contemplar multiples aggregators los sum van a mandar cada tipo de fruta a un aggregator en particular. Para ello se hashea el nombre de la fruta y en base a esa transformacion se envia el mensaje. Por lo tano, la fruta 'manzana' siempre se enviara al mismo aggregator.
-
-Por ultimo, el join se modifica para contemplar los "EOFs" de los aggregators y esperar agrupar las cantidades por cliente hasta recibir el ultimo "EOF".
+`make switch`: Permite alternar rápidamente entre los archivos de docker compose de los distintos escenarios provistos.
